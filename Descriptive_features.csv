@@ -1,0 +1,17 @@
+Name,Data Type,Units,Description
+Age,numerical,Years,Age of the patient
+Gender,binary,"Female, Male",Gender of the patient
+Polyuria,binary,"Yes, No",Body urinates more than usual and passes excessive or abnormally large amounts of urine each time
+Polydipsia,binary,"Yes, No",Dry mouth and excessive thirst
+Sudden weight loss,binary,"Yes, No",Unexplained  sudden weight loss
+Weakness,binary,"Yes, No",Fatigue/ Feelings of exhaustion and lethargy
+Polyphagia,binary,"Yes, No",Excessive or extreme hunger
+Genital thrush,binary,"Yes, No","Itching, irritation and swelling  around the Genital organs"
+Visual blurring,binary,"Yes, No",Lack of sharpness of vision and inability to see fine details
+Itching,binary,"Yes, No", Irritating sensation that makes you want to scratch your skin
+Irritability,binary,"Yes, No",Feeling frustrated or getting upset easily
+Delayed healing,binary,"Yes, No","Delayed wound healing, recurrent or severe infections"
+Partial paresis,binary,"Yes, No",Weakening of a muscle or group of muscles
+Muscle stiffness,binary,"Yes, No",Muscles feel tight and more difficult to move than you usually do
+Alopecia,binary,"Yes, No",Patches of hair loss on the head and on other parts of the body
+Obesity,binary,"Yes, No",Excessive amount of body fat

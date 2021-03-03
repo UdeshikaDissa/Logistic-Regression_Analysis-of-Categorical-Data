@@ -1,0 +1,674 @@
+---
+title: "Predicting the Likelihood of Diabetes Using Common Signs and Symptoms"
+subtitle: "Project Phase II | MATH1298 Analysis of Categorical Data | RMIT University"
+author: "Udeshika Dissanayake | s3400652 | Project Groups 60"
+date: "October 31, 2020"
+#output: html_document
+
+output:
+  html_document:
+    toc: true
+    #toc_depth: 2
+    #toc_float: true
+    #number_sections: true
+    #theme: united
+toc-title: List of Contents
+bibliography: Phase2_references.bib
+csl: apa.csl
+link-citations: yes
+nocite: '@*'
+editor_options:
+  chunk_output_type: console
+---
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{css, echo = FALSE}
+#Caption properties
+caption {
+      color: gray;
+      font-size: 7;
+    }
+```
+
+
+<!--
+### Load Packages
+
+Below packages and libraries in R have been used in for this study.
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+-->
+
+```{r include=FALSE}
+installed.packages("bookdown")
+installed.packages("readr")
+installed.packages("dplyr")
+installed.packages("ggplot2")
+installed.packages("vcd")
+installed.packages("outliers")
+installed.packages("gridExtra")
+installed.packages("car")
+
+
+library(ggplot2)
+library(vcd)
+library(outliers)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(gridExtra)
+library(bookdown)
+library(readr)
+library(dplyr)
+library(car)
+
+```
+
+ 
+# 1. Introduction
+
+About one third of patients with diabetes do not know that they have diabetes according to the findings published by many diabetes institutes around the world [@citation7]. Detecting and treating diabetes patients at early stages is critical in order to keep them healthy and to ensure their quality of life is not compromised. Early detection will also help to mitigate the risk of serious complications like heart disease & stroke, blindness, limb amputations, and kidney failures as a result of diabetes [@citation7].
+
+This study intends to build a logistic regression model to predict the likelihood of having diabetes using common signs and symptoms presented by patients. A successful model will enable early detection of diabetes through signs and symptoms shown by possible patients.
+
+This study consists with two phases: 1) Phase I - preprocess and explore the data set in order to make it ready to consume for model development. 2) Phase II - build a logistic regression model to predict the likelihood of having diabetes based on signs and symptoms. The Phase I part has already been completed under previous work/submission and this report intends to cover the work carried out for Phase II. 
+
+All the activities have been performed in R package and the report has been compiled using R-Markdown. This report covers both narratives and R pseudocode for Statistical modelling activities that have been performed under the phase II.
+
+### Data Set
+
+The data set consists of signs and symptoms of 516 newly diabetic or would be diabetic patients, who presented at Sylhet Diabetes Hospital in Sylhet, Bangladesh. The data had been collected using direct questionnaires method at the hospital under the supervisor of Doctors. The Source for the data set is the UCI Machine Learning Repository [@Dua:2019] at, [archive.ics.uci.edu](https://archive.ics.uci.edu/ml/datasets/Early+stage+diabetes+risk+prediction+dataset.) [@dataset]. The data set has 16 descriptive features and one target feature.  
+
+
+#### Descriptive Features
+
+Below table explains the descriptive features in the data set that will be used in the model. 
+
+
+```{r include=FALSE}
+# Setting up working directory
+setwd("C:/Users/udesh/RMIT/2020_S2/MATH1298 Analysis of Categorical Data/Phase2")
+```
+
+
+```{r message=FALSE, warning=FALSE,comment=NA, include=FALSE}
+#loading the descriptive features data set
+installed.packages("kableExtra")
+library(kableExtra)
+features<-read_csv("Descriptive_features.csv")
+
+```
+
+
+```{r , echo=FALSE}
+#creating a table for descriptive features
+kbl(features, caption = "Table 1: Descriptive features") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left",font_size = 10)
+  
+```
+
+
+#### Target Feature
+
+The name of the target feature is “Class” and it's labels are as follows, 
+
+$$\text{Class} =\begin{cases} Positive & \text {if the patient is diagnosed as a diabetic patient} \\
+                     Negative &  \text {if the patient is not diagnosed as a diabetic patient} 
+       \end{cases}$$
+
+
+The target feature has two levels. Hence this can be classified as binomial target feature.
+
+### Methodology
+
+In order to predict the likelihood of having diabetes using common signs and symptoms, a logistic regression model is formulated. The data set has been pre-processed and explored in the previous Phase (Phase I). For all categorical attributes, the requirement for the Dummy encoding is investigated. The "Class" variable, which is a binary variable is used as the Target feature. The model with main-effects is improved and optimized using the feature selection (forward selection with AIC) method. The model is further improved using incorporation of 2-way interactions of selected features. The Standardized Pearson residual analysis is performed against the "Age" variable in order to check the validity of the model. The Goodness of Fit study is undertaken to evaluate how well the model fits for all the observations at once. The Response Analysis, Confident Interval, Hypothesis Test, and Sensitivity Analysis are performed to observe how the model behaves and responds for different circumstances.        
+
+
+# 2. Statistical Modelling
+ 
+#### Data Preprocessing - Dummy Encoding
+
+The bulk of the data preprocessing has been done under Phase I. However, the dummy encoding of categorical attributes has been kept to preform under Phase II. 
+
+```{r message=FALSE, warning=FALSE,comment=NA, include=FALSE}
+df<-read_csv("df.csv")# Retrieving Data Set
+df[2:17] <- lapply(df[2:17], as.factor) # Data Type Conversion
+```
+
+Let's recall the data set by observing 5 random rows of the pre-process data.  
+
+```{r }
+#Random 5 rows of the data set
+kbl(sample_n(df,5), caption = "Table 2: Random 5 rows from data set") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left",font_size = 10)
+```
+
+As can be seen, all the categorical attributes in the data sets have two levels (Yes or No), therefore each attribute could be encoded to have binary variable (i.e. 1 or 0) using dummy encoding. It is essential to make sure the categorical attributes that are to be dummy encoded are in "Factor" type. As shown in the R-output below, the data type of the ‘Age’ feature is “numeric”, whereas the data type for all the other descriptive features including target is “Factor”.
+
+```{r}
+sapply(df, class)#checking variable types in the data frame
+```
+
+Using the <I>contrasts()</I> function, the default indicator values that <I>R</I> has sets are observed below: 
+
+
+```{r}
+#Checking levels
+for (n in names(df))
+  if (is.factor(df[[n]])) {
+    print(n)
+    print(contrasts(df[[n]]))
+  }
+```
+
+As shown above, by default R has given "No"=0 and "Yes"=1 for the attributes with "Yes"" and "No" levels. For the attribute "Gender", R has set "Female"=0 and "Male"=1. Finally for the target attribute, R has set "Negative"=0, "Positive"=1.  
+Since the encoded values are in meaningful order, no further tweaking in the encoding is required.
+
+
+### 2.1. Model Fitting
+
+This section covers the development, attribute selection, and validation of a logistic regression model to predict the likelihood of having diabetes using common signs and symptoms presented by patients. The model fitting task starts with the full-model considering all the main effects and then improving the model by selecting and dropping attributes as needed. 
+
+#### Full-Model with Main Effects
+
+As the starting point of the model development, the full-model is considered with all the main effects. The model coefficients, Z values and P values for each feature are obtained as shown below:
+
+```{r}
+full.mod <- glm(formula = class ~., family = binomial(link = logit), data = df)
+summary(object = full.mod)
+```
+
+Further, the LRT test has been performed to identify the important main effects to the model,
+
+```{r}
+Anova(full.mod)
+```
+
+It is evident based on the smaller P-values (<0.05) from <I>Anova()</I> output, the important main effects to the model are:
+Age, Gender, Polyuria, Polydipsia, Polyphagia, Genital thrush, Itching, Irritability, Partial Paresis. Also, relatively higher P-values (>0.05) suggest the non-important main effects to the model as: Sudden Weight Loss, Weakness, Visual Blurring, Delayed Healing, Muscle Stiffness, Alopecia, and Obesity.
+
+It is worth noting from the <I>summary()</I> output of the full-model, the AIC value is 205.37. This figure will be used to compare the performance of the improved models in future sections. 
+
+
+#### Feature Selection for Main Effects
+
+In this section, the Forward Selection is used as the model selection criteria, while the Akaike's Information Criterion (AIC) is used as the information criteria in order to compare the performance of different model by changing the attribute combinations. The intention of this task is to optimize the model with main effects by selecting the most impactful features. The most optimized model is derived when the AIC value is the lowest. Below code shows the AIC values for each iteration of the Forward Selection criteria for attribute selection:
+
+```{r}
+empty.mod <- glm(formula = class ~ 1, family = binomial(link = logit), data = df)
+forw.sel_AIC <- step(object = empty.mod, 
+                     scope = list(upper=full.mod),
+                     direction = "forward",
+                     k = 2,
+                     trace = TRUE)
+```
+
+As can be seen from above outputs, the AIC has been improved to 198.03 (from 205.37 for full model) with the selected attributes as: Polyuria, Polydipsia, Gender, Itching, Irritability, Genital Thrush, Partial Paresis, Polyphagia, Age, and Weakness. 
+
+
+**LRT Testing for Reduced Model**  
+
+In order to test the statistical significance of the above selected features, the LRT test is performed as below:
+
+```{r}
+mod.fit_AIC<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + weakness + Polyphagia +
+                   `Genital thrush` + Itching + Irritability + `partial paresis`,
+                 family = binomial(link = logit), data = df)
+Anova(mod.fit_AIC)
+```
+
+It is evident from the P-values above, almost all the features have P-values less than 0.05 except for the attribute "Weakness", which has the p-value of 0.0608. This suggested the attribute "Weakness" is marginally significant and it can be ignored from the model.
+
+
+#### Adding 2-way Interactions to the model
+
+Based on the observations in the Phase I data exploration task, below two-way interactions have been chosen to be considered to the model: 
+
+Polyuria:Age  
+Polyuria:sudden weight loss  
+Age:visual blurring  
+Polyuria:Polydipsia  
+Polyuria:Gender  
+partial paresis:muscle stiffness  
+gender:sudden weight loss  
+gender:Genital thrush  
+
+Using below steps, each two-way interaction is added (one at a time) to the reduced model and respective AIC values have been checked:
+
+```{r}
+#Polyuria:Age
+mod.fit1<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + Polyphagia + `Genital thrush` +
+                   Itching + Irritability + `partial paresis` + Polyuria:Age,
+              family = binomial(link = logit), data = df)
+
+# Polyuria:`sudden weight loss`
+mod.fit2<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + `sudden weight loss` + Polyphagia +
+                `Genital thrush` + Itching + Irritability + `partial paresis` +
+                Polyuria:`sudden weight loss`,
+              family = binomial(link = logit), data = df)
+
+# Age:`visual blurring`
+mod.fit3<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + Polyphagia + `Genital thrush` +
+                `visual blurring` + Itching + Irritability + `partial paresis` +
+                Age:`visual blurring`,
+              family = binomial(link = logit), data = df)
+
+#Polyuria:Polydipsia
+mod.fit4<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + Polyphagia + `Genital thrush` +
+                   Itching + Irritability + `partial paresis` + Polyuria:Polydipsia,
+              family = binomial(link = logit), data = df)
+
+#Polyuria:Gender
+mod.fit5<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + Polyphagia + `Genital thrush` +
+                   Itching + Irritability + `partial paresis` + Polyuria:Gender,
+              family = binomial(link = logit), data = df)
+
+
+# `partial paresis`:`muscle stiffness`
+mod.fit6<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + Polyphagia + `Genital thrush` +
+                   Itching + Irritability + `partial paresis` + `muscle stiffness` +
+                `partial paresis`:`muscle stiffness`,
+              family = binomial(link = logit), data = df)
+
+# gender:`sudden weight loss`
+mod.fit7<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + `sudden weight loss` +
+                Polyphagia + `Genital thrush` + Itching + Irritability + `partial paresis` +
+                Gender:`sudden weight loss`,
+              family = binomial(link = logit), data = df)
+
+# gender:`Genital thrush`
+mod.fit8<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia + `sudden weight loss` +
+                Polyphagia + `Genital thrush` + Itching + Irritability + `partial paresis` +
+                Gender:`sudden weight loss` + Gender:`Genital thrush`,
+              family = binomial(link = logit), data = df)
+
+inter <- c("Polyuria:Age", "Polyuria:sudden weight loss", "Age:visual blurring",
+           "Polyuria:Polydipsia", "Polyuria:Gender", "partial paresis:muscle stiffness",
+           "gender:sudden weight loss", "Gender:Genital thrush")
+
+AIC.vec <- c(AIC(mod.fit1), AIC(mod.fit2), AIC(mod.fit3), AIC(mod.fit4), AIC(mod.fit5), AIC(mod.fit6),
+             AIC(mod.fit7), AIC(mod.fit8))
+all.AIC1 <- data.frame(inter = inter, AIC.vec)
+all.AIC1[order(all.AIC1[,2]), ]
+```
+
+It is evident from the AIC values that only the "Polyuria:Age" interaction improves the model (AIC = 187.7). Therefore, "Polyuria:Age" interaction is considered into the model. Next, other two-way interactions have been added to the improved model sequentially and respective AIC values have been checked.
+
+Adding "Age:Visual Blurring" interaction to the model:
+
+```{r}
+#with Polyuria:Age + Age:visual blurring
+mod.fit_reduced<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia +
+                       Polyphagia + `Genital thrush`+ Itching + Irritability +
+                       `visual blurring` + `partial paresis` + Age:`visual blurring`+
+                       Polyuria:Age,
+                     family = binomial(link = logit), data = df)
+AIC(mod.fit_reduced)
+
+```
+It is worth noting that the AIC value has been reduced to 185.29. This indicates that the model is improved by adding the "Age:Visual Blurring" interaction to the model. Next the AIC value is tested for the improved model (with "Age:Polyuria" and "Age:Visual Blurring") by adding the next two-way interaction "Gender:Genital Thrush".
+
+```{r}
+#with Polyuria:Age + Age:visual blurring + Gender:Genital thrush
+mod.fit_reduced<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia +
+                       Polyphagia + `Genital thrush`+ Itching + Irritability +
+                       `partial paresis` + `visual blurring` + 
+                       Gender:`Genital thrush`+ Polyuria:Age + Age:`visual blurring`,
+                     family = binomial(link = logit), data = df)
+AIC(mod.fit_reduced)
+
+```
+
+Since there is no improvement in the AIC value (AIC = 185.47), it can be concluded that the two-way interaction of  "Gender:Genital Thrush" is not important to the model. 
+
+Subsequently, the two-way interaction of "Gender:Sudden Weight Loss" is considered next as can be seen below:
+
+```{r}
+#with Polyuria:Age + Age:visual blurring + gender:sudden weight loss
+mod.fit_reduced<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia +
+                       Polyphagia + `Genital thrush`+ Itching + Irritability +
+                       `partial paresis` + `visual blurring` + `sudden weight loss`+
+                       Polyuria:Age + Age:`visual blurring`+ Gender:`sudden weight loss`,
+                     family = binomial(link = logit), data = df)
+
+AIC(mod.fit_reduced)
+```
+
+It is evident that the AIC value has been reduced to 182.31 with the incorporation of "Gender:Sudden Weight Loss" to the model. Similarly, all other two -way interactions have been sequentially added to the improved model and the AIC values have been checked. However, there were not significant improvements to the AIC values, hence non of other two-way interactions have been included into the model.
+
+
+**LRT Testing for Improved Model**
+
+In order to test the statistical significance of the above selected features (main effects and two-way interactions), the LRT test is performed as below:
+
+```{r}
+#LRT testing
+Anova(mod.fit_reduced)
+```
+
+It is evident that the P-values are greater than 0.05 for three attributes: "Partial Paresis", "Visual Blurring", and "Sudden Weight Loss". Out of these three attributes, "Partial Paresis" can be dropped from the model as it is not statistically significant as the P-value (>0.05) is concerned. However, other two attributes can not be dropped due the the significance of their associated two-way interactions. 
+
+Finally, the AIC value and LRT test is obtained for final estimated model with selected main effects & two-way interaction as below:
+
+```{r}
+#after removing partial paresis
+mod.fit_reduced<-glm(formula = class ~ Age + Gender + Polyuria + Polydipsia +
+                       `sudden weight loss` + Polyphagia + `Genital thrush`+ `visual blurring` +
+                       Itching + Irritability + Polyuria:Age + Age:`visual blurring`+ Gender:`sudden weight loss`,
+                     family = binomial(link = logit), data = df)
+
+AIC(mod.fit_reduced)
+
+#LRT testing
+Anova(mod.fit_reduced)
+
+```
+
+
+#### Estimated Model
+
+The coefficients of the estimated logistic regression model is obtained from,
+```{r}
+round(mod.fit_reduced$coefficients,3)
+```
+
+And the estimated logistic regression model to predict the likelihood of having diabetes using common signs and symptoms presented by patients is given by,
+
+$$
+logit( \hat\pi ) = -1.586 + 0.047 * Age - 3.93 * Male + 13.858 * Polyuria + 5.296 * Polydipsia \\
++ 2.448 * SuddenWeightLoss + 1.284 * Polyphagia + 1.410 * GenitalThrush  \\
++ 8.837 * VisualBlurring- 3.562 * Itching + 2.891 * Irritability\\
+- 0.167 * Polyuria * Age \\
+- 0.147 * Age * VisualBlurring\\
+- 3.156 * Male * SuddenWeightLoss
+$$
+
+It is worth noting that the sign "Polyuria" has comparatively large positive coefficient, which suggest it has a dominance contribution to the prediction model. Also, the negative coefficient for "Age:Polyuria" suggests the positive contributions of "Polyuria" sign for diabetes prediction declines with the age. 
+
+
+### 2.2. Residual Analysis
+
+The Standardized Pearson residual analysis has been performed for the independent numerical variable of "Age". Firstly, the data set is transformed in to explanatory variable pattern (EVP) form with respect to the "Age" attribute as shown below:
+
+
+```{r}
+# dummy encoding
+df1 <- df
+df1[2] <- ifelse(df1[2] == "Female", 1,0)
+df1[3:16] <- ifelse(df1[3:16] == "Yes", 1,0) 
+df1[17] <- ifelse(df1[17] == "Positive", 1,0) 
+
+
+# Convert data to EVP form
+w <- aggregate(formula = class ~ Age + Gender + Polyuria + Polydipsia  + `sudden weight loss` +
+                 Polyphagia + `Genital thrush` + `visual blurring` + Itching + Irritability ,
+               data = df1, FUN = sum)
+
+n <- aggregate(formula = class ~ Age + Gender + Polyuria + Polydipsia  + `sudden weight loss` +
+                 Polyphagia + `Genital thrush` + `visual blurring` + Itching + Irritability,
+               data = df1, FUN = length)
+
+w.n <- data.frame(w, trials = n$class, prop = round(w$class/n$class, 4))
+
+#First 5 rows of the data set -EVP form
+kbl(head(w.n,5), caption = "Table 3: Random 5 rows from data set-EVP form") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",font_size = 10)
+```
+
+Five random rows of the EVP form data is shown in above table:
+
+In order to verify that the EVP transformation has happened correctly, the total number of EVP entries and their respective number of observations have been cross checked against the original data set. Also, the logistic regression model is derived again for the EVP data as shown below:
+```{r}
+nrow(w.n) # Number of EVPs (M)
+```
+
+```{r}
+sum(w.n$trials) # Number of observations
+```
+
+
+```{r}
+mod.fit.bin<-glm(formula = class/trials ~ Age + Gender + Polyuria + Polydipsia +
+                       sudden.weight.loss + Polyphagia + Genital.thrush+ visual.blurring +
+                       Itching + Irritability + Polyuria:Age + Age:visual.blurring+ Gender:sudden.weight.loss,
+                  family = binomial(link = logit), data = w.n, weights = trials)
+round(summary(mod.fit.bin)$coefficients, digits = 4)
+
+```
+
+It is worth noting that the model coefficients obtained from EVP data is almost equal to the coefficients obtained from the original data set. This suggests that the EVP transformation is statistically equivalent to the original data set. 
+
+
+As shown below in the left figure, the Standardized Pearson residuals are plotted against the independent variable of "Age". It is evident that the points are mostly randomly scattered with a very few points (only 7 observations) outside +/-3 lines. This indicates that the developed logistic regression model is performing well. The middle plot shows the Standardized Pearson residuals against the estimated probability of success. It is worth noticing that the large number of points are gathered close to 0 and 1 in the X axis and their respective residual values are very close to 0. This indicates that for real data, the developed model mostly (except for 7 observations) outputs 'True' (close to 1) or 'False' (close to 0) with fairly good accuracy. The in between points are also possess Residual values within +/-3 for real data. Finally, the third plot (right most) shows the Standardized Pearson residual against the Linear Predictor. It is evident that the residual values are almost zero for very-high and very-low Linear Predictor values. This indicates that the if symptoms are existing, the model would accurately predicts the likelihood of patience to have diabetes. However, for Linear Predictor values around zero, the Residual values tends to deviates from zero. Among them only 7 points are outsize +/-3 lines.
+
+
+
+```{r}
+pi.hat <- predict(mod.fit.bin, type = "response")
+p.res <- residuals(mod.fit.bin, type = "pearson")
+s.res <- rstandard(mod.fit.bin, type = "pearson")
+lin.pred <- mod.fit.bin$linear.predictors
+w.n <- data.frame(w.n, pi.hat, p.res, s.res, lin.pred)
+
+
+kbl(round(head(w.n), digits = 3), caption = "Table 4: First 5 rows of new data set with Pi.hat, p.res, s.res and lin pred") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = F, position = "left",font_size = 10)
+
+```
+
+
+
+```{r,  fig.height = 6, fig.width = 12}
+par(mfrow = c(1,3))
+# Standardized Pearson residual vs Age plot
+plot(x = w.n$Age, y = w.n$s.res, xlab = "Age",ylab = "Standardized Pearson residuals", 
+     main = "Figure 1: Standardized residuals vs. Age")
+abline(h = c(3, 2, 0, -2, -3), lty = 3, col = "blue")
+# Add loess model to help visualize tren
+smooth.stand <- loess(formula = s.res ~ Age, data = w.n, weights = trials)
+order.age <- order(w.n$Age)
+lines(x = w.n$Age[order.age], y = predict(smooth.stand)[order.age], lty = 3, col = "red", lwd = 3)
+
+# Standardized Pearson residual vs pi plot
+plot(x = w.n$pi.hat, y = w.n$s.res, xlab = "Estimated probability of succes",ylab = "Standardized Pearson residuals", 
+     main = "Figure 2: Standardized residuals vs.  pi.hat")
+abline(h = c(3, 2, 0, -2, -3), lty = 3, col = "blue")
+smooth.stand <- loess(formula = s.res ~ pi.hat, data = w.n, weights = trials)
+order.pi.hat <- order(w.n$pi.hat)
+lines(x = w.n$pi.hat[order.pi.hat], y = predict(smooth.stand)[order.pi.hat], lty = 3, col = "red", lwd = 3)
+
+# Standardized Pearson residual vs linear predictor plot
+plot(x = w.n$lin.pred, y = w.n$s.res, xlab = "Linear predictor",ylab = "Standardized Pearson residuals", 
+     main = "Figure 3: Standardized residuals vs. linear predictor")
+abline(h = c(3, 2, 0, -2, -3), lty = 3, col = "blue")
+smooth.stand <- loess(formula = s.res ~ pi.hat, data = w.n, weights = trials)
+order.lin.pred <- order(w.n$lin.pred)
+lines(x = w.n$lin.pred[order.lin.pred], y = predict(smooth.stand)[order.lin.pred], lty = 3, col = "red", lwd = 3)
+
+```
+
+Below table shows all 7 EVP groups that contribute for the Standardized Pearson Residual points outsize +/-3 lines. It is worth noting that each of these groups have very small number of observations, therefore, the model results would not be necessarily aligned with the real observation. These points could be safely ignored despite they are outside +/-3 lines.  
+
+```{r warning=FALSE,message=FALSE, echo=FALSE}
+spr<-read_csv("S.residual.csv")
+kbl(spr, caption = "Table 5: The residual outside of the ±3 lines.") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left",font_size = 10)
+```
+
+### 2.3. Response Analysis
+
+Next, lets look how the response variable (i.e. likelihood of having diabetes) behaves against a independent variable. The symptom "Polyuria" has been selected as the independent variable in this analysis due to the fact that it has the largest model coefficient. Using below script, the real observation and model output has been visually represented,
+
+```{r fig.height = 6, fig.width = 12, warning=FALSE}
+pi.hat1 <- predict(mod.fit_reduced, type = "response")
+df1 <- data.frame(df, pi.hat1)
+
+p1<- ggplot(df1, aes(x= class,  group=Polyuria)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = TRUE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Figure 4: Polyuria by Class") +
+    facet_grid(~Polyuria) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 14),axis.title.x = element_blank())
+
+p2<-ggplot(df1, aes(x=Polyuria, y=pi.hat1,color=Polyuria)) +  
+  geom_boxplot() +
+  stat_summary(fun.y=mean, geom="point", shape=20, size=6, color="red", fill="red")+
+  labs(y = "Estimated Probability", title="Figure 5: Estimated probability by Polyuria") 
+
+grid.arrange(p1, p2, ncol=2, widths=c(2.6, 2.6))
+```
+
+As can be seen from the above left figure, according to the real observations, 94% of population with "Polyuria" symptom are diagnosed with diabetes, while only 29% of population without "Polyuria" symptom have been diagnosed with diabetes. The plot in the right figure shows model output as the box plots of probability of having diabetes against the "Polyuria" symptom. It is evident from the right figure that the model output of the probability of having diabetes when "Polyuria=Yes", shows a mean value (the Red dot) of ~90%, while probability of having diabetes when "Polyuria=No" shows a mean value (Red dot) ~29%. This indicates that the model output for probability of having diabetes as a function of "Polyuria" closely aligns with real observation from original data set.
+
+
+### 2.4. Goodness of Fit
+
+In order to evaluate how well the model fits for all the observations at once, the Goodness of Fit (GOF) analysis is performed. The "Residual Deviance/df" value is calculated for the model using the below script:
+
+```{r}
+# deviance/DF
+rdev <- mod.fit.bin$deviance
+dfr <- mod.fit.bin$df.residual
+ddf <- rdev/dfr
+thresh2 <- 1 + 2*sqrt(2/dfr) # potential problem
+thresh3 <- 1 + 3*sqrt(2/dfr) # poor fit
+round(c(rdev, dfr, ddf, thresh2, thresh3),3)
+
+```
+
+As can be seen above, the "Residual Deviance/df" value for the model is 0.673 and it is smaller than the potential fit ratio (1.192) as well as the poor fit ratio (1.287). This indicates that the GOF statistics of this particular model is within the satisfactory limit, hence the developed model is a good fit. 
+
+### 2.5. Confidence Intervals
+
+Primarily, the data set comprises of two populations: Male and Female. It is worth checking whether there is a significant different between males and females in the data set to be a diabetics patient. If there is no significant difference, the attribute "Gender" can be dropped from the model development. The Wald's confidence interval has been checked to determine this as shown in below steps:
+
+First, the Two-Way Contingency and respective Probability tables have been obtained for female and male populations,
+
+```{r}
+c.table <- table(df$Gender,df$class)
+c.table
+
+```
+
+
+```{r}
+pi.hat.table<-c.table/rowSums(c.table)
+pi.hat.table
+```
+
+Then, the Wald's confidence intervals for the probability difference of two populations (male and female) has been calculated as below:
+```{r}
+#probability of having diabetes for each group:
+alpha<-0.05
+pi.hat1<-pi.hat.table[1,2]
+pi.hat2<-pi.hat.table[2,2]
+#Wald
+var.wald<-pi.hat1*(1-pi.hat1) / sum(c.table[1,]) + pi.hat2*(1-pi.hat2) / sum(c.table[2,])
+round(pi.hat1 - pi.hat2 + qnorm(p = c(alpha/2, 1-alpha/2)) * sqrt(var.wald),3)
+```
+
+According to the results, the 95% Wald confidence interval is:
+$$0.386 < (\hat\pi_1 - \hat\pi_2) < 0.524$$
+
+Since this interval does not contain zero, there is a sufficient evidence to indicate a significant difference between male and female populations to the target attribute. Hence "Gender" attribute need to be considered in the model.
+
+
+### 2.6. Hypothesis Tests
+
+Under this section the importance Age & Polyuria interaction is analysed using the hypothesis testing method. Below the age distribution of Polyuria symptom segregated by ‘Class’ (i.e. diabetes positive or negative) is shown. 
+
+```{r, fig.align = "center"}
+bp <- ggplot(data=df, aes(x=Age, y=Polyuria, group=Polyuria)) + 
+  geom_boxplot(aes(fill=Polyuria), alpha=0.7,outlier.shape=NA,lwd=0.2)
+bp + facet_grid(df$class ~.)+ stat_boxplot(geom = 'errorbar', width = 0.2,coef = 3)+
+  theme(
+  panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"), 
+  panel.grid.minor = element_line(size = 0.1, linetype = 'solid',
+                                colour = "light gray"))+
+  scale_fill_manual(name = "Polyuria", values = c("orange", "blue"))+
+  labs(title="Figure 6: Boxplots of Age segragated by Polyuria & Class") +
+  theme(plot.title = element_text(size = 13,colour = "black"))
+```
+
+It is obvious from the diabetes negative plot (top) that Polyuria symptoms are presented in older population; the age distributions of Polyuria “yes’ and “no” show a clear separation of age (mean age of Polyuria ‘no’ is 45 years, while mean age of Polyuria “yes” is about 78 years). This suggests that Polyuria is an age-related sign in general community. However, this age separation between Polyuria “yes’ and “no” populations are not prominent within diabetes positive population as shown in second plot. This supports someone to believe Polyuria is a diabetes related symptom at the first sight.
+
+In order to evaluate the importance of the interaction of Polyuria and Age for the model, the LRT test is carried out for the parameters that correspond to Age:polyuria - $\beta_{11}$.
+
+The corresponding hypotheses are:
+
+
+$$
+H_0: β_{11}  = 0\\
+H_a: β_{11} \neq  0
+$$
+
+```{r}
+Anova(mod.fit_reduced)
+```
+
+It is shows from the results that the test statistic is -2log(Λ) = 11.10, and the p-value is 0.0008 using a $X^2_2$ approximation. This indicates that the "Polyuria:Age" interaction is statistically significant for the model, thus the null hypothesis can be rejected safely.  
+
+### 2.7. Sensitivity Analysis
+
+The sensitivity analysis has been performed to check the effect of polyuria symptom on the probability of diagnosed with diabetes depends on the age. The Odds Ratio and Confidence Intervals for Polyuria and its interactions are being considered here. The odds ratio for polyuria comparing polyuria (1) vs non-polyuria (0) holding Age constant is,
+
+$$
+\hat {Odds Ratio}_{polyuria}= e^{\beta_{3}+ \beta_{11}*Age}
+$$
+where $\beta_3$ is coefficient for polyuria and $\beta_{11}$ coefficient for polyuria:age interaction. Using below code, the Odd Ratios are obtained for ages from 10 to 80 at 5 year intervals.  
+
+```{r}
+beta.hat<-mod.fit_reduced$coefficients[2:13]
+age<-seq(from = 10, to = 80, by = 5)
+OR.polyuria<- exp((beta.hat[3] + beta.hat[11]*age))
+
+cov.mat<-vcov(mod.fit_reduced)[2:13,2:13]
+#Var(beta^_4 + age*beta^_11)
+var.log.OR<-cov.mat[3,3] + age^2*cov.mat[11,11] + 2*age*cov.mat[3,11]
+
+ci.log.OR.low<-(beta.hat[3] + beta.hat[11]*age) - qnorm(p = 0.975)*sqrt(var.log.OR)
+ci.log.OR.up<-(beta.hat[3] + beta.hat[11]*age) + qnorm(p = 0.975)*sqrt(var.log.OR)
+OR.low <- exp(ci.log.OR.low)
+OR.up <- exp(ci.log.OR.up)
+round(data.frame(age = age, OR.hat = OR.polyuria , OR.low , OR.up ),2)
+```
+
+
+As can be seen from the OR.hat values in above table, the odds of having diabetics change by 195573 times for the people having polyuria when the age is fixed at a value of 10. However, the odds of having diabetics dramatically changes to 1.59 times for the people having polyuria when the age is fixed at a value of 80. This suggests, the "Ployuria" is very sensitive indicator within the young population to determine whether they have diabetes or not. However, among the older population, the "Polyuria" symptom is not comparatively so sensitive indicator. In other words, according to the analysis, diabetes is more susceptible for "Polyuria" symptoms in younger population compared to that of older population. Also, through the confident interval shows above, it can be expressed with 95% confidence, the odds of detecting diabetes for 50 years old patients is between 49.72 to 1171.07 times as large for patients with polyuria symptoms (polyuria = 1) than for non-polyuria patients (polyuria = 0). Similarly, for the other age groups the odd of detecting diabetes can be estimated using the values in the table.
+
+
+
+# 3. Critique & Limitations
+It is observed that the female population withing the data set is surprisingly low (37%), while their diabetes positive rates are significantly high (90%). This shows a gender biasness of the data set. This could be due to a anomaly in the data set during the recording or could be due to social & cultural issue within the respective community. It will be interesting to re-build the model for similar data sets captured for different socio-economic group. 
+
+
+
+# 4. Summary & Conclusions
+
+
+The objective of this work is to build a logistic regression model to predict the likelihood of having diabetes using common signs and symptoms presented by patients. The initial data exploration indicates that there are number of noticeable relationships between sign/symptoms and having diabetes. A logistic regression model is formulated and was further improved using feature selection techniques and incorporating 2-way interactions of the attributes. The Standardized Pearson residual analysis and Goodness of Fit analysis confirmed that the improved model performs and fits reasonably well. The Response Analysis done for "Polyuria" confirms that the model output is reasonably close to the actual observation. It was found from Confident Interval analysis that the male and female populations in the data set are statistically different, hence kept the Gender as a feature in the model. Using the Hypothesis Testing, the statistical importance of Age:Polyuria interaction was confirmed. The odd ratio of having diabetes for "Polyuria" presented patients is investigate across the "Age" groups. It is evident that the “Ployuria” is very sensitive indicator within the younger population to determine whether they have diabetes. However, among the older population, the “Polyuria” symptom is not comparatively so sensitive indicator.  
+
+Surprisingly, the proportion of diabetes positive females in the data set is significant high (90%) compared to that of male (44%), despite the fact the female patients in the data set is noticeably low (37%) compared to male (67%). It will be interesting to conduct a study to investigate the reason behind this. Could this be due to females in Bangladesh are less likely to visit hospitals compared to males or could females be tolerating illnesses more compared to males. Such analysis is out of the scope of this study, therefore did not carry out further analysis on those lines in this study.
+
+In this model, only a few selected 2-way interactions have been considered. It is quite possible that the model could be further improved by considering all the 2-way and higher-order interactions.
+
+
+
+
+
+
+# 5. References

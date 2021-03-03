@@ -1,0 +1,819 @@
+---
+title: "Predicting the Likelihood of Diabetes Using Common Signs and Symptoms"
+subtitle: "Project Phase1 | MATH1298 Analysis of Categorical Data | RMIT University"
+author: "Udeshika Dissanayake | s3400652 | Project Groups 60"
+date: "September 23, 2020"
+#output: html_document
+
+output:
+  html_document:
+    toc: true
+    #toc_depth: 2
+    #toc_float: true
+    #number_sections: true
+    #theme: united
+toc-title: List of Contents
+bibliography: Phase1_references.bib
+csl: apa.csl
+link-citations: yes
+nocite: '@*'
+editor_options:
+  chunk_output_type: console
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{css, echo = FALSE}
+#Caption properties
+caption {
+      color: gray;
+      font-size: 7;
+    }
+```
+
+
+<!--
+### Load Packages
+
+Below packages and libraries in R have been used in for this study.
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+-->
+```{r include=FALSE}
+installed.packages("bookdown")
+installed.packages("readr")
+installed.packages("dplyr")
+installed.packages("ggplot2")
+library(ggplot2)
+installed.packages("vcd")
+library(vcd)
+installed.packages("outliers")
+library(outliers)
+
+installed.packages("gridExtra")
+library(dplyr)
+library(tidyr)
+library(scales)
+library(gridExtra)
+
+library(bookdown)
+library(readr)
+library(dplyr)
+
+
+```
+
+
+
+
+## Data Source and Description
+
+The data set consists of signs and symptoms of 520 newly diabetic or would be diabetic patients, who presented at Sylhet Diabetes Hospital in Sylhet, Bangladesh. The data had been collected using direct questionnaires method at the hospital under the supervisor of Doctors. The Source for the data set is the UCI Machine Learning Repository [@Dua:2019] at, [archive.ics.uci.edu](https://archive.ics.uci.edu/ml/datasets/Early+stage+diabetes+risk+prediction+dataset.) [@dataset]. The data set has 16 descriptive features and one target feature.  
+
+
+### Descriptive Features
+
+Below table explains the descriptive features in the data set that will be used in the model. 
+
+
+```{r include=FALSE}
+# Setting up working directory
+setwd("C:/Users/udesh/RMIT/2020_S2/MATH1298 Analysis of Categorical Data/Phase1/my work")
+```
+
+
+```{r message=FALSE, warning=FALSE,comment=NA, include=FALSE}
+#loading the descriptive features data set
+installed.packages("kableExtra")
+library(kableExtra)
+features<-read_csv("Descriptive_features.csv")
+
+```
+
+
+```{r , echo=FALSE}
+#creating a table for descriptive features
+kbl(features, caption = "Table 1: Descriptive features") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left")
+  
+```
+
+
+
+### Target Feature
+
+The name of the target feature is “Class” and it's labels are as follows, 
+
+$$\text{Class} =\begin{cases} Positive & \text {if the patient is diagnosed as a diabetic patient} \\
+                     Negative &  \text {if the patient is not diagnosed as a diabetic patient} 
+       \end{cases}$$
+
+
+The target feature has two levels. Hence this can be classified as binomial target feature.
+
+
+## Goals and Objectives
+
+About one third of patients with diabetes do not know that they have diabetes according to the findings published by many diabetes institutes around the world [@citation7]. Detecting and treating diabetes patients at early stages is critical in order to keep them healthy and to ensure their quality of life is not compromised. Early detection will also help to mitigate the risk of serious complications like heart disease & stroke, blindness, limb amputations, and kidney failures as a result of diabetes [@citation7].
+
+This study intends to build a logistic regression model to predict the likelihood of having diabetes using common signs and symptoms presented by patients. A successful model will enable early detection of diabetes through signs and symptoms shown by possible patients.
+
+This study consists with two phases: 1) Phase I - preprocess and explore the data set in order to make it ready to consume for model development. 2) Phase II - build a logistic regression model to predict the likelihood of having diabetes based on signs and symptoms.
+
+All the activities have been performed in R package and the report has been compiled using R-Markdown. This report covers both narratives and R pseudocode for data preprocessing & exploration activities that have been performed under the phase I.
+
+
+## Data Cleaning and Preprocessing
+ 
+### Retrieving Data Set
+
+The diabetes data set has been loaded in to R Studio using the <I>read_csv()</I> function in the <I>readr</I> package and then print the dimension of the data frame to check whether the data set has been loaded correctly.
+
+```{r message=FALSE, warning=FALSE,comment=NA}
+diabetes<-read_csv("diabetes.csv")
+dim(diabetes)
+
+```
+
+
+Random 5 rows have been printed using <I>sample_n()</I> function in <I>dplyr</I> package to inspect further and check whether the features and descriptions outlined in the source documentation are aligning with the data frame.
+
+
+```{r}
+kbl(sample_n(diabetes,5), caption = "Table 2: Random 5 rows from data set") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left",font_size = 10)
+```
+
+As per the above R-outputs, the loaded data set is aligning with the data set description on the data source.
+
+Data types in the original data  frame are:
+```{r}
+sapply(diabetes, class)
+```
+
+As shown in the R-output above, the data type of the 'Age' feature is “numeric”, whereas the data type for all the other descriptive features including target is “character”.
+
+### Data Type Conversion
+
+All the variables except the 'Age' variable should be in factor data type. However in the data set they are defined as character variables. Using below code, variables with character data type have then been converted to "factor" type for this study.
+
+```{r}
+
+diabetes[2:17] <- lapply(diabetes[2:17], as.factor)
+```
+
+After completing the data type conversion, the data types of the frame are as below:
+
+```{r}
+#checking variable types in the data frame
+sapply(diabetes, class)
+
+```
+
+
+```{r include=FALSE}
+#checking the levels of all the variables
+#sapply(diabetes, levels)
+```
+
+
+### Checking for Missing Values in the Data Set
+
+Below codes have been executed to identify if there are any missing values in the data set. It is clearly evident that
+there are no missing values in the data set.
+
+```{r}
+na_count <-sapply(diabetes, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+
+kbl(na_count, caption = "Table 3: Count of missing values") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "left")
+```
+
+
+
+### Checking for Typo in Categorical Features
+
+
+Types of all categorical features, including the target feature in the data set has been checked by investigating
+the frequency tables using <I>summary()</I> function in <I>vcd</I> package. As can be seen below, there are no typos in the categorical features in the data set.
+
+```{r }
+summary(diabetes[2:17])
+
+```
+
+### Checking Extra White-spaces & Capital Letter Mismatches in Categorical Features
+
+Extra white-spaces & capital letter mismatches in the categorical data have already been checked while investigating
+the frequency tables in previous section ( [Checking for typo in Categorical Features](#checking-for-typo-in-categorical-features) ).
+
+
+
+### Checking for Impossible Numerical Values in Age Feature
+
+Summary statistics has been checked using <I>summary()</I> function in the vcd package in order to check whether there are any impossible numerical values in 'Age' variable. As per the summary statistics, the 'Age' variable spans from 16 to 90. Therefore, this data set doesn't have any impossible values.
+
+`
+```{r}
+summary(diabetes$Age)
+```
+
+
+### Checking for Outliers in Age Feature
+
+Box-plot is one of the best method to visualize outliers of numerical attributes. Any dots outside the whiskers are good candidates for outliers. The only numerical variable to be checked for outliers in the data set is 'Age' and as per the box-plot, few outliers can be seen:
+
+```{r,fig.align='center'}
+boxplot(Age~Gender,data=diabetes, main = "Figure 1: Boxplot of Age Distribution Before Removing Outliers",
+        xlab = "Age",
+        col = "orange",
+        border = "brown",
+        horizontal = TRUE)
+
+```
+
+
+Then corresponding row numbers for these outliers are checked using the below R-Code.
+
+```{r }
+# row number corresponding to these outliers
+out <- boxplot.stats(diabetes$Age)$out
+out_ind <- which(diabetes$Age %in% c(out))
+out_ind
+```
+
+
+Rows 102, 103, 186, and 187 are outliers as per the results above. It is better to investigate those rows before removing these outliers. As shown in the below table, two female and two male patients are found to be outliers and all of them are diagnosed as diabetes patients.
+
+```{r }
+#Examining the relevant rows which are having outliers
+diabetes[out_ind, ] %>%
+  kbl(caption = "Table 4: Outliers in the data set") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                font_size = 10, full_width = F, position = "left")
+
+```
+
+
+Due to the fact that all four of these patients are above 85 years old, and assuming that they could have age related signs similar to that of diabetes symptoms, removing them from the data set is recommended to achieve the objective of the study of early detection of diabetes through its symptoms. 
+
+The z-score method has been used as below to remove those outliers from the data set.
+
+```{r}
+#Summary statistics from z-score method
+z.scores <- diabetes$Age %>% scores(type = "z")
+z.scores %>% summary()
+```
+
+
+```{r}
+#Removing the Outliers
+diabetes_new<- diabetes[which( abs(z.scores) <3 ),]
+dim(diabetes_new)
+```
+
+After removing the outliers, data set now contains information for 516 patients. As shown below, the Z-score test has again been executed to ensure that there are no further outliers.
+
+```{r}
+z.scoresN <- diabetes_new$Age %>% scores(type = "z")
+which( abs(z.scoresN) >3 )
+```
+
+```{r,fig.align='center'}
+boxplot(Age~Gender,data=diabetes_new, main = "Figure 2: Boxplot of Age Distribution After Removing Outliers",
+        xlab = "Age (years)",
+        col = "orange",
+        border = "brown",
+        horizontal = TRUE)
+
+```
+
+
+## Data Exploration and Visualization
+
+### One-variable Plots
+
+One-variable plots can be used to investigate the distribution and the characteristics of each attribute. The histogram has been used to explore the numerical feature, while frequency plots have been used to explore categorical features using <I>dplyr</I>, <I>ggplot2</I>, <I>tidyr</I> and <I>scales</I> packages.
+
+`
+```{r}
+summary(diabetes_new$Age)
+```
+
+
+```{r warning=FALSE, message=FALSE,fig.align='center'}
+
+ggplot(data=diabetes_new, aes(x=Age)) + 
+  geom_histogram(col="dark blue", 
+                 fill="blue", 
+                 alpha = .5) + 
+  labs(title="Figure3: Histogram for Age", x="Age", y="") + 
+  xlim(c(0,100)) + 
+  ylim(c(0,90))
+```
+
+Above figure shows the distribution of the ‘Age’ variable, which spans from around 16 years to almost 79 years. The middle 50% of the age resides between 39 years to 56 years as can be seen from summary statistics table. The shape of the histogram hints a slight right skewness with mean around 48 years. This suggests the higher proportion of the patients who visited this diabetes hospital are mid to older people.
+
+All other variables with factor data type have also been explored using relative frequency plots as shown below,
+
+
+
+```{r}
+#Propotional Bar Charts for Gender
+
+plot1 <- ggplot(diabetes_new, aes(Gender)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Gender")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+```
+
+
+```{r echo=FALSE}
+#Polyuria
+plot2 <- ggplot(diabetes_new, aes(Polyuria)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Polyuria")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Polydipsia
+plot3 <- ggplot(diabetes_new, aes(Polydipsia)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Polydipsia")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#sudden weight loss
+plot4 <- ggplot(diabetes_new, aes(`sudden weight loss`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Sudden Weight Loss")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#weakness
+plot5 <- ggplot(diabetes_new, aes(weakness)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Weakness")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Polyphagia
+plot6 <- ggplot(diabetes_new, aes(Polyphagia)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Polyphagia")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Genital thrush
+plot7 <- ggplot(diabetes_new, aes(`Genital thrush`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Genital Thrush")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#visual blurring
+plot8 <- ggplot(diabetes_new, aes(`visual blurring`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Visual Blurring")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Itching
+plot9 <- ggplot(diabetes_new, aes(Itching)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Itching")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Irritability
+plot10 <- ggplot(diabetes_new, aes(Irritability)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Irritability")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#delayed healing
+plot11 <- ggplot(diabetes_new, aes(`delayed healing`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Delayed Healing")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#partial paresis
+plot12 <- ggplot(diabetes_new, aes(`partial paresis`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Partial Paresis")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#muscle stiffness
+plot13 <- ggplot(diabetes_new, aes(`muscle stiffness`)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Muscle Stiffness")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Alopecia
+plot14 <- ggplot(diabetes_new, aes(Alopecia)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Alopecia")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Obesity
+plot15 <- ggplot(diabetes_new, aes(Obesity)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Obesity")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#class
+plot16 <- ggplot(diabetes_new, aes(class)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),color="dark blue", fill="blue", alpha=0.4, width = 0.4) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Freq.")+
+  geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = 1.5,colour="black",size=3)+
+  labs(title="Class")+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+```
+
+
+```{r,fig.align='center'}
+grid.arrange(plot1, plot2, plot3, plot4,plot5,plot6,plot7,plot8,plot9,
+             ncol=3, widths=c(2.6, 2.6, 2.6),
+            top = grid::textGrob("Figure 4: Propotional Bar Charts for Categorical Features", x = 0, hjust = 0))
+            
+```
+
+
+```{r echo=FALSE,fig.align='center'}
+grid.arrange(plot10,plot11,plot12,plot13,plot14,plot15,plot16,
+             ncol=3, widths=c(2.6, 2.6, 2.6),
+             bottom = textGrob("Propotional Bar Charts for Categorical Features",
+                              gp = gpar(fontface = 3, fontsize = 9),
+                              hjust = 1, x = 1)
+            )
+```
+
+It is worth noting that the male population is dominating in the data set with 63%. As can be seen, there are fourteen sign and symptoms recorded in the data set and these signs and symptoms were presented within the sample patients ranging from 17% (least – Obesity) to 59% (most – Weakness). Finally, it is important to mention that only 61% of the patients in the data set are diabetes positive.   
+
+
+### Two-variable Plots
+
+In order to obtain further insight on the data set, two-variable data exploration was performed. Below code plots the histograms for ‘Age’ feature segregated by Class (i.e. diabetes positive or negative). 
+
+```{r message=FALSE, warning=FALSE, fig.align='center'}
+# Histogram for Age segragated by Class 
+ggplot(diabetes_new, aes(x = Age)) +
+  geom_histogram(aes(color = diabetes_new$class, fill = diabetes_new$class), 
+                position = "identity", bins = 30, alpha = 0.4) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800"),name="Class") +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"),name="Class")+
+  labs(title="Figure 5: Histogram for Age segragated by Class") + 
+  xlim(c(0,100)) + 
+  ylim(c(0,60))+
+  theme(plot.title = element_text(size = 12),axis.title.y = element_blank(),panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"), 
+  panel.grid.minor = element_line(size = 0.1, linetype = 'solid',
+                                colour = "light gray"))
+```
+
+It has been noticed that most patients between age 25 to 32 years within the data set are proportionately diabetes negative, while majority of patients above 32 years are proportionately diabetes positive with the exception of 43 - 47 years, 50 – 53 years, and 71 - 74 years age groups, which shows slightly different results. Further, within the data set, it is observed that 47 - 50 and 62 - 65 age groups have shown a significantly high proportion of positive diabetes cases compared to other age groups. The shown variation of diabetes positive proportions across the age groups could be due to the small sample size and real trend (if any) with better intuition would be able to achieve by exploring larger data set.
+
+The fourteen signs and symptoms which have categorical features, have been explored against target feature ‘Class’ (i.e. diabetes positive or negative) as shown below. Respective proportional bar plots segregated by ‘Class’ have been plotted in order to obtain better insight by comparing the normalized values instead of counts.
+
+```{r}
+#Gender by Class
+p1 <- ggplot(diabetes_new, aes(x= class,  group=Gender)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5,show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", title="Gender by Class") +
+    facet_grid(~Gender) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+```
+
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+#Polyuria by Class
+p2 <- ggplot(diabetes_new, aes(x= class,  group=Polyuria)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Polyuria by Class") +
+    facet_grid(~Polyuria) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+
+#Polydipsia by Class
+p3 <- ggplot(diabetes_new, aes(x= class,  group=Polydipsia)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Polydipsia by Class") +
+    facet_grid(~Polydipsia) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#sudden weight loss by class
+p4 <- ggplot(diabetes_new, aes(x= class,  group=`sudden weight loss`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="sudden weight loss by Class") +
+    facet_grid(~`sudden weight loss`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#weakness by class
+p5 <- ggplot(diabetes_new, aes(x= class,  group=weakness)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="weakness loss by Class") +
+    facet_grid(~weakness) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Polyphagia by class
+p6 <- ggplot(diabetes_new, aes(x= class,  group=Polyphagia)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Polyphagia by Class") +
+    facet_grid(~Polyphagia) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Genital thrush by class
+p7 <- ggplot(diabetes_new, aes(x= class,  group=`Genital thrush`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Genital thrush by Class") +
+    facet_grid(~`Genital thrush`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#visual blurring by class
+p8 <- ggplot(diabetes_new, aes(x= class,  group=`visual blurring`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="visual blurring loss by Class") +
+    facet_grid(~`visual blurring`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Itching by class
+p9 <- ggplot(diabetes_new, aes(x= class,  group=Itching)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Itching by Class") +
+    facet_grid(~Itching) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Irritability by class
+p10 <- ggplot(diabetes_new, aes(x= class,  group=`Irritability`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Irritability by Class") +
+    facet_grid(~Irritability) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#delayed healing by class
+p11 <- ggplot(diabetes_new, aes(x= class,  group=`delayed healing`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="delayed healing by Class") +
+    facet_grid(~`delayed healing`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#partial paresis by class
+p12 <- ggplot(diabetes_new, aes(x= class,  group=`partial paresis`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="partial paresis by Class") +
+    facet_grid(~`partial paresis`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#muscle stiffness by class
+p13 <- ggplot(diabetes_new, aes(x= class,  group=`muscle stiffness`)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="muscle stiffness by Class") +
+    facet_grid(~`muscle stiffness`) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#Alopecia by class
+p14 <- ggplot(diabetes_new, aes(x= class,  group=Alopecia)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5, show.legend = FALSE) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="Alopecia by Class") +
+    facet_grid(~Alopecia) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+
+#class by class
+p15 <- ggplot(diabetes_new, aes(x= class,  group=class)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", alpha=0.5,color="dark blue", width = 0.5) +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = 1.5, colour="black",size=3) +
+    labs(y = "Percent", fill="Class",title="class by Class") +
+    facet_grid(~class) +
+    scale_y_continuous(labels = scales::percent)+ 
+  scale_fill_discrete(name="Class",labels=c("Negative", "Positive"))+
+  theme(plot.title = element_text(size = 10),axis.title.x = element_blank())
+```
+
+```{r, fig.align='center'}
+grid.arrange(p1, p2, p3, p4, 
+             ncol=2, widths=c(2.6, 2.6),
+             top = grid::textGrob("Figure 6: Propotional Bar Charts for Categorical Features segragated by Class", x = 0, hjust = 0))
+            
+```
+
+```{r echo=FALSE,fig.align='center'}
+grid.arrange(p5, p6,p7,p8,
+             ncol=2, widths=c(2.6, 2.6))
+
+grid.arrange(p9, p10, p11, p12,
+             ncol=2, widths=c(2.6, 2.6))
+
+grid.arrange(p13, p14,p15,
+             ncol=2, widths=c(2.6, 2.6))
+```
+
+Surprisingly, the proportion of diabetes positive females in the data set is significant high (90%) compared to that of male (44%), despite the fact the female patients in the data set is noticeably low (37%) compared to male (67%). It will be interesting to conduct a study to investigate the reason behind this. Could this be due to females in Bangladesh are less likely to visit hospitals compared to males or could females be tolerating illnesses more compared to males. Such analysis is out of the scope of this study, therefore do not carry out further analysis on those lines in this study. 
+
+As can be seen from the above frequency plots, more than 70% of population with Polyuria, Ploydispia, Weight loss, Weakness, Ployphagia, Genital thrush, Blurring, Irritability, and Partial paresis signs & symptoms, independently, have shown diabetes positive. On the other hand, more than 50% of population without Polyuria, Ploydispia, Weight loss, Weakness, Ployphagia, and Partial paresis signs & symptoms, have shown diabetes negative. 
+
+This results at first sight tends someone to think that signs and symptoms like Polyuria, Ploydispia, Weight loss, Weakness, Ployphagia, and Partial paresis would have high contributions to the logistic regression model that will be build in next phase. 
+
+### Three-variable Plots
+
+Finally, features in the data set are explored taking three variables at a time and by plotting respective box plots as shown below,  
+
+```{r,fig.align='center'}
+bp <- ggplot(data=diabetes_new, aes(x=Age, y=Gender, group=Gender)) + 
+  geom_boxplot(aes(fill=Gender), alpha=0.7,outlier.shape=NA,lwd=0.2)
+bp + facet_grid(diabetes_new$class ~.)+ stat_boxplot(geom = 'errorbar', width = 0.2,coef = 3)+
+  theme(
+  panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"), 
+  panel.grid.minor = element_line(size = 0.1, linetype = 'solid',
+                                colour = "light gray"))+
+  scale_fill_manual(name = "Gender", values = c("orange", "blue"))+
+  labs(title="Figure 7: Boxplots of Age segragated by Gender & Class") +
+  theme(plot.title = element_text(size = 13,colour = "black"))
+  
+```
+
+It is clearly evident that the age distribution of diabetes positive male and female populations are higher compared to diabetes negative populations. However, the mean of diabetes negative females shows a fairly higher value, possibly due to the smaller sample size of diabetes negative female patients (count = 19).
+
+Polyuria symptom that is believed to have high correlation to diabetes have been explored against respective ‘Gender’ and ‘Class’ as below,
+
+
+
+```{r,fig.align='center'}
+bp <- ggplot(data=diabetes_new, aes(x=Age, y=Polyuria, group=Polyuria)) + 
+  geom_boxplot(aes(fill=Polyuria), alpha=0.7,outlier.shape=NA,lwd=0.2)
+bp + facet_grid(diabetes_new$class ~.)+ stat_boxplot(geom = 'errorbar', width = 0.2,coef = 3)+
+  theme(
+  panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"), 
+  panel.grid.minor = element_line(size = 0.1, linetype = 'solid',
+                                colour = "light gray"))+
+  scale_fill_manual(name = "Polyuria", values = c("orange", "blue"))+
+  labs(title="Figure 8: Boxplots of Age segragated by Polyuria & Class") +
+  theme(plot.title = element_text(size = 13,colour = "black"))
+  
+```
+
+The age distribution of Polyuria symptom segregated by ‘Class’ (i.e. diabetes positive or negative) is shown in above box plots. It is obvious from the diabetes negative plot (top) that Polyuria symptoms are present in older population; the age distributions of Polyuria “yes’ and “no” show a clear separation of age (mean age of Polyuria ‘no’ is 45 years, while mean age of Polyuria “yes” is about 78 years). This suggests that Polyuria is an age-related sign in general community. However, this age separation between Polyuria “yes’ and “no” populations are not prominent within diabetes positive population as shown in second plot. This supports someone to believe Polyuria is a diabetes related symptom at the first sight.
+
+
+
+Finally, the colored scatter plots are used to visually show the grouping of ‘Class’ (i.e. diabetes positive in red and diabetes negative with blue) with respect to two other features. In the first plot below, “Gender’ and ‘Polyuria’ have been used as features. It can be noticed that almost all the females with Polyuria symptom are diabetes positive, while majority (but let proportion compared to female) of males shows the similar pattern. On the other hand, the majority of the males without Polyuria symptoms are diabetes negative, and females are showing the similar pattern with less prominence.
+
+```{r,fig.align='center'}
+ggplot(diabetes_new, aes(Gender, Polyuria)) +
+  geom_jitter(aes(color = class), size = 1,position=position_jitter(0.3))+
+  theme(
+  panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"))+
+  scale_color_manual(values=c("#56B4E9", "red"))+
+  labs(title="Figure 9: Polyuria by Gender segragated by Class") +
+  theme(plot.title = element_text(size = 13,colour = "black"))
+```
+
+
+In the second plot, the grouping of ‘Class’ (i.e. diabetes positive in red and diabetes negative with blue) is shown again ‘Sudden weight loss’ and ‘Polyuria’ features. It is worth noting that very high proportion of the population that shows both of these symptoms are diabetes positive. In contrast, majority of the population that do not show either of these symptoms are diabetes negative.  
+
+```{r,fig.align='center'}
+ggplot(diabetes_new, aes(Polyuria, `sudden weight loss`)) +
+  geom_jitter(aes(color = class), size = 1,position=position_jitter(0.3))+
+  theme(
+  panel.background = element_rect(fill = "white",colour = "dark gray",
+                                size = 1, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.2, linetype = 'solid',
+                                colour = "light gray"))+
+  scale_color_manual(values=c("#56B4E9", "red"))+
+  labs(title="Figure 10: Polyuria by `sudden weight loss` segragated by Class") +
+  theme(plot.title = element_text(size = 13,colour = "black"))
+```
+  
+## References
+
+
+
+
