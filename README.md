@@ -11,16 +11,16 @@ Descriptive_features.csv
 
 ## Phase1: preprocess and explore the data-set in order to build the model in Phase II
 
-### data-set: Phase1_Data.csv
+data-set: Phase1_Data.csv
 
-### R Code: Phase1_Code.RMD
+R Code: Phase1_Code.RMD
 
-### Report: Phase1_Report.html
+Report: Phase1_Report.html
 
 ## Phase2: build a logistic regression model to predict the likelihood of having diabetes based on signs and symptoms
 
-### data-set: Phase2_Data.csv
+data-set: Phase2_Data.csv
 
-### R Code: Phase2_Code.RMD
+R Code: Phase2_Code.RMD
 
-###Report: Phase2_Report.html
+Report: Phase2_Report.html
