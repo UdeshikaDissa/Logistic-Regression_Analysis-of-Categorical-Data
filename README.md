@@ -15,7 +15,7 @@ data-set: Phase1_Data.csv
 
 R Code: Phase1_Code.RMD
 
-Report: Phase1_Report.html
+Report: Phase1_Report.pdf
 
 ## Phase2: build a logistic regression model to predict the likelihood of having diabetes based on signs and symptoms
 
@@ -23,4 +23,4 @@ data-set: Phase2_Data.csv
 
 R Code: Phase2_Code.RMD
 
-Report: Phase2_Report.html
+Report: Phase2_Report.pdf
